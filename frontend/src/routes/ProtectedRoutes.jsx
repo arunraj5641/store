@@ -23,6 +23,7 @@ const ProtectedRoutes = () => {
   return (
     <DashboardLayout>
       <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/products" element={<Products />} />

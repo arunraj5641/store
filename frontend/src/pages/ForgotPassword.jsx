@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Mail, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react'
 import AuthCard from '../components/auth/AuthCard'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -20,8 +24,12 @@ const ForgotPassword = () => {
       return
     }
 
-    setError('')
-    setSuccess('Password reset instructions were prepared for this demo flow.')
+    setIsLoading(true)
+    setTimeout(() => {
+      setIsLoading(false)
+      setError('')
+      setSuccess('Password reset instructions were prepared for this demo flow.')
+    }, 300)
   }
 
   return (
@@ -29,31 +37,45 @@ const ForgotPassword = () => {
       title="Reset your password"
       subtitle="Enter your email and we will guide you through the next steps."
       footer={
-        <p>
+        <p className="text-xs text-[#94A3B8]">
           Remembered it?{' '}
-          <Link to="/login" className="font-semibold text-cyan-300 transition hover:text-cyan-200">Back to login</Link>
+          <Link to="/login" className="inline-flex items-center gap-1 font-semibold text-[#00D9FF] transition hover:text-[#38BDF8]">
+            <ArrowLeft className="h-3 w-3" /> Back to login
+          </Link>
         </p>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={`w-full rounded-xl border px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-cyan-400 ${error ? 'border-rose-500/50 bg-rose-500/10' : 'border-slate-700 bg-slate-900'}`.trim()}
-            placeholder="you@example.com"
-          />
-          {error ? <p className="mt-2 text-xs text-rose-300">{error}</p> : null}
-        </div>
+        <Input
+          label="Email address"
+          type="email"
+          icon={Mail}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={Boolean(error)}
+          helperText={error}
+          placeholder="you@example.com"
+        />
 
-        {success ? <p className="text-sm text-emerald-300">{success}</p> : null}
+        {success ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-[#10B981]/40 bg-[#10B981]/10 p-3.5 text-xs text-[#10B981]">
+            <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>{success}</span>
+          </div>
+        ) : null}
 
-        <button type="submit" className="w-full rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">Reset password</button>
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isLoading}
+          className="w-full mt-2"
+        >
+          Reset password <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
       </form>
     </AuthCard>
   )
 }
 
 export default ForgotPassword
+
