@@ -72,6 +72,12 @@ services:
       context: ./ai-service
     container_name: ai_support_copilot_ai_service
     restart: unless-stopped
+    environment:
+      SERVICE_NAME: ${SERVICE_NAME:-ai-service}
+      SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      RAILS_API_URL: ${RAILS_API_URL:-}
     ports:
       - "8000:8000"
     volumes:
