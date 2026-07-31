@@ -1,25 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Send, Bot, User, Zap, RefreshCw, MessageSquare, Plus, Clock } from 'lucide-react'
+import { Sparkles, Send, Bot, User, Zap, RefreshCw, MessageSquare, Plus } from 'lucide-react'
 import Header from '../components/common/Header'
 import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import aiService from '../services/ai'
+
+const chatTimestamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+const initialMessages = () => [
+  {
+    id: 'welcome',
+    sender: 'ai',
+    text: 'Hello! I am your Kirana OS AI Co-pilot. Ask me a question and I will route it to the live AI service.',
+    time: chatTimestamp(),
+  },
+]
 
 const Assistant = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'ai',
-      text: 'Hello! I am your Kirana OS AI Co-pilot. I am monitoring your store inventory, billing velocity, and customer credit ledger in real time.',
-      time: '10:00 AM',
-    },
-    {
-      id: 2,
-      sender: 'ai',
-      text: '⚠️ Alert: You currently have 2 items in critical low stock (Fortune Sunflower Oil 1L & Tata Tea Gold 500g). Would you like me to prepare an automated supplier order?',
-      time: '10:01 AM',
-    },
-  ])
+  const [messages, setMessages] = useState(() => initialMessages())
 
   const [inputQuery, setInputQuery] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -42,49 +40,43 @@ const Assistant = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const handleSendMessage = (textToSend) => {
-    const query = textToSend || inputQuery
+  const handleSendMessage = async (textToSend) => {
+    const query = (textToSend || inputQuery).trim()
     if (!query.trim()) return
 
     const userMsg = {
       id: Date.now(),
       sender: 'user',
       text: query,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: chatTimestamp(),
     }
 
     setMessages((prev) => [...prev, userMsg])
     setInputQuery('')
     setIsTyping(true)
 
-    // Simulate AI thinking and response
-    setTimeout(() => {
-      let aiReplyText = 'I have analyzed your store data. All metrics are within optimal range.'
-
-      if (query.toLowerCase().includes('margin') || query.toLowerCase().includes('profit')) {
-        aiReplyText =
-          '📊 Profit Margin Analysis: Staples & Grains yield an average margin of 14.3%. Highest margin product: Surf Excel Easy Wash 1kg (15.5% margin).'
-      } else if (query.toLowerCase().includes('supplier') || query.toLowerCase().includes('order') || query.toLowerCase().includes('stock')) {
-        aiReplyText =
-          '📦 Draft Purchase Order Created: 20 units of Fortune Sunflower Oil 1L & 15 units of Tata Tea Gold 500g assigned to Adani Wilmar & Tata Consumer Depots.'
-      } else if (query.toLowerCase().includes('udhar') || query.toLowerCase().includes('credit') || query.toLowerCase().includes('customer')) {
-        aiReplyText =
-          '💳 Udhar Credit Summary: Vikram Singh has an overdue balance of ₹1,200 (15 days pending). Automated WhatsApp reminder draft prepared.'
-      } else if (query.toLowerCase().includes('forecast') || query.toLowerCase().includes('revenue')) {
-        aiReplyText =
-          '📈 Weekend Sales Forecast: Based on historical Saturday/Sunday footfall, projected revenue is ₹68,500 (+18% vs regular weekdays).'
-      }
-
+    try {
+      const response = await aiService.chat(query)
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: aiReplyText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: response.data?.reply || 'AI service returned an empty response.',
+        time: chatTimestamp(),
       }
 
       setMessages((prev) => [...prev, aiMsg])
+    } catch (error) {
+      const aiMsg = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: error.response?.data?.message || 'AI Co-pilot is unavailable right now. Please try again shortly.',
+        time: chatTimestamp(),
+      }
+
+      setMessages((prev) => [...prev, aiMsg])
+    } finally {
       setIsTyping(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -94,7 +86,7 @@ const Assistant = () => {
         description="Ask intelligent questions about inventory forecasts, profit margins, supplier orders, and credit ledgers."
         badge="AI Co-pilot v1.0"
         actions={
-          <Button variant="outline" size="sm" onClick={() => setMessages([messages[0]])}>
+          <Button variant="outline" size="sm" onClick={() => setMessages(initialMessages())}>
             <RefreshCw className="h-3.5 w-3.5" /> Clear Chat
           </Button>
         }
@@ -235,4 +227,3 @@ const Assistant = () => {
 }
 
 export default Assistant
-

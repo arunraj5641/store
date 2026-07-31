@@ -5,6 +5,8 @@ Rails.application.routes.draw do
       post "login", to: "auth#login"
       get "me", to: "auth#me"
 
+      post "ai/chat", to: "ai#chat"
+
       get "products", to: "products#index"
       post "products", to: "products#create"
       get "products/:id", to: "products#show"
