@@ -2,6 +2,7 @@ module Api
   module V1
     class BaseController < ApplicationController
       include ApiResponse
+      include Authenticatable
 
       rescue_from StandardError, with: :handle_internal_server_error
       rescue_from ActiveRecord::RecordNotFound, with: :handle_record_not_found
