@@ -1,0 +1,9 @@
+.bundle
+.git
+.DS_Store
+log/*
+tmp/*
+storage/*
+vendor/bundle
+config/master.key
+Dockerfile
