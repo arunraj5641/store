@@ -4,10 +4,9 @@ import Header from '../components/common/Header'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
-import { initialNotifications } from '../services/mockData'
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState(initialNotifications)
+  const [notifications, setNotifications] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('All')
 
   const categories = ['All', 'Low Stock', 'Payments', 'Udhar', 'AI Insights', 'System']
@@ -130,4 +129,3 @@ const Notifications = () => {
 }
 
 export default Notifications
-

@@ -1,40 +1,64 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { clearStoredToken, getStoredToken } from '../services/api/client'
+import authService from '../services/auth'
 
 export const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const login = (credentials) => {
-    if (!credentials?.email || !credentials?.password) {
-      return { success: false, message: 'Email and password are required.' }
-    }
-
-    setUser({ email: credentials.email, name: 'Demo Store Owner' })
-    setIsAuthenticated(true)
-    return { success: true, message: 'Signed in successfully.' }
-  }
-
-  const signup = (values) => {
-    if (!values?.name || !values?.email || !values?.password) {
-      return { success: false, message: 'Please complete all required fields.' }
-    }
-
-    setUser({ email: values.email, name: values.name })
-    setIsAuthenticated(true)
-    return { success: true, message: 'Account created successfully.' }
-  }
-
-  const logout = () => {
+  const logout = useCallback(() => {
+    authService.logout()
     setUser(null)
-    setIsAuthenticated(false)
-    return { success: true, message: 'Signed out.' }
+  }, [])
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (!getStoredToken()) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await authService.me()
+        setUser(response.data.user)
+      } catch {
+        clearStoredToken()
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    restoreSession()
+    window.addEventListener('auth:unauthorized', logout)
+    return () => window.removeEventListener('auth:unauthorized', logout)
+  }, [logout])
+
+  const login = async (credentials) => {
+    try {
+      const response = await authService.login(credentials)
+      setUser(response.data.user)
+      return { success: true, message: response.message }
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Unable to sign in.' }
+    }
+  }
+
+  const signup = async (values) => {
+    try {
+      const response = await authService.signup(values)
+      setUser(response.data.user)
+      return { success: true, message: response.message }
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Unable to create your account.' }
+    }
   }
 
   const value = useMemo(
-    () => ({ user, isAuthenticated, login, signup, logout }),
-    [user, isAuthenticated],
+    () => ({ user, isLoading, isAuthenticated: Boolean(user), login, signup, logout }),
+    [user, isLoading, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

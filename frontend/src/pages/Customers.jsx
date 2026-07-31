@@ -22,10 +22,9 @@ import Table from '../components/ui/Table'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Avatar from '../components/ui/Avatar'
-import { initialCustomers } from '../services/mockData'
 
 const Customers = () => {
-  const [customers, setCustomers] = useState(initialCustomers)
+  const [customers, setCustomers] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [viewMode, setViewMode] = useState('table')
@@ -367,4 +366,3 @@ const Customers = () => {
 }
 
 export default Customers
-

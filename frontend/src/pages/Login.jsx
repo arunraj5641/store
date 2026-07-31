@@ -24,17 +24,15 @@ const Login = () => {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (!validate()) return
 
     setIsLoading(true)
-    setTimeout(() => {
-      const result = login(form)
-      setIsLoading(false)
-      if (result.success) navigate('/dashboard')
-      else setErrors((current) => ({ ...current, form: result.message }))
-    }, 300)
+    const result = await login(form)
+    setIsLoading(false)
+    if (result.success) navigate('/dashboard')
+    else setErrors((current) => ({ ...current, form: result.message }))
   }
 
   return (
@@ -110,4 +108,3 @@ const Login = () => {
 }
 
 export default Login
-

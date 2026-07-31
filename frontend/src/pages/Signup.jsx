@@ -10,13 +10,14 @@ import { useAuth } from '../contexts/AuthContext'
 const Signup = () => {
   const navigate = useNavigate()
   const { signup } = useAuth()
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ name: '', email: '', shopName: '', password: '', confirmPassword: '', remember: false })
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
 
   const validate = () => {
     const nextErrors = {}
     if (!form.name.trim()) nextErrors.name = 'Full name is required.'
+    if (!form.shopName.trim()) nextErrors.shopName = 'Shop name is required.'
     if (!form.email.trim()) nextErrors.email = 'Email is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) nextErrors.email = 'Enter a valid email.'
     if (!form.password) nextErrors.password = 'Password is required.'
@@ -27,17 +28,15 @@ const Signup = () => {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (!validate()) return
 
     setIsLoading(true)
-    setTimeout(() => {
-      const result = signup(form)
-      setIsLoading(false)
-      if (result.success) navigate('/dashboard')
-      else setErrors((current) => ({ ...current, form: result.message }))
-    }, 300)
+    const result = await signup(form)
+    setIsLoading(false)
+    if (result.success) navigate('/dashboard')
+    else setErrors((current) => ({ ...current, form: result.message }))
   }
 
   return (
@@ -63,6 +62,16 @@ const Signup = () => {
           error={Boolean(errors.name)}
           helperText={errors.name}
           placeholder="Amit Sharma"
+        />
+
+        <Input
+          label="Shop Name"
+          type="text"
+          value={form.shopName}
+          onChange={(event) => setForm((current) => ({ ...current, shopName: event.target.value }))}
+          error={Boolean(errors.shopName)}
+          helperText={errors.shopName}
+          placeholder="Asha Kirana Store"
         />
 
         <Input
@@ -115,4 +124,3 @@ const Signup = () => {
 }
 
 export default Signup
-

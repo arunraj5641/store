@@ -12,7 +12,7 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_BACKEND_URL || 'http://localhost:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        headers: { host: 'localhost:3000' },
       },
     },
   },
