@@ -4,7 +4,14 @@ const unwrap = (response) => response.data
 
 export const authService = {
   async login({ email, password, remember }) {
-    const payload = unwrap(await apiClient.post('/v1/login', { user: { email, password } }))
+    const loginPayload = {
+      user: {
+        email,
+        password,
+      },
+    }
+
+    const payload = unwrap(await apiClient.post('/v1/login', loginPayload))
     storeToken(payload.data.token, remember)
     return payload
   },

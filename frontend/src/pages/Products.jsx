@@ -22,18 +22,33 @@ const Products = () => {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
+  const [lowStockOnly, setLowStockOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [form, setForm] = useState(emptyProduct)
   const [editingProduct, setEditingProduct] = useState(null)
   const [viewingProduct, setViewingProduct] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [deletingProductId, setDeletingProductId] = useState(null)
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await inventoryService.list({ page, per_page: 20, search: search || undefined, category: category || undefined })
+      const response = await inventoryService.list({
+        page,
+        per_page: 20,
+        search: search.trim() || undefined,
+        category: category.trim() || undefined,
+        low_stock: lowStockOnly || undefined,
+      })
+
+      if (response.meta?.total_pages > 0 && page > response.meta.total_pages) {
+        setPage(response.meta.total_pages)
+        return
+      }
+
       setProducts(response.data.products)
       setMeta(response.meta)
     } catch (requestError) {
@@ -41,12 +56,28 @@ const Products = () => {
     } finally {
       setLoading(false)
     }
-  }, [page, search, category])
+  }, [page, search, category, lowStockOnly])
 
   useEffect(() => { loadProducts() }, [loadProducts])
 
+  const productForm = (product) => ({
+    product_name: product.product_name,
+    category: product.category,
+    current_stock: String(product.current_stock),
+    reorder_threshold: String(product.reorder_threshold),
+  })
+
+  const resetFilters = () => {
+    setPage(1)
+    setSearch('')
+    setCategory('')
+    setLowStockOnly(false)
+  }
+
   const submitProduct = async (event) => {
     event.preventDefault()
+    setIsSaving(true)
+    setError('')
     try {
       const payload = { ...form, current_stock: Number(form.current_stock), reorder_threshold: Number(form.reorder_threshold) }
       if (editingProduct) await inventoryService.update(editingProduct.product_id, payload)
@@ -54,22 +85,31 @@ const Products = () => {
       setIsFormOpen(false)
       setEditingProduct(null)
       setForm(emptyProduct)
-      loadProducts()
+      if (!editingProduct) setPage(1)
+      await loadProducts()
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Unable to save product.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const deleteProduct = async (product) => {
     if (!window.confirm(`Delete ${product.product_name}?`)) return
+    setDeletingProductId(product.product_id)
+    setError('')
     try {
       await inventoryService.remove(product.product_id)
-      loadProducts()
+      await loadProducts()
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Unable to delete product.')
+    } finally {
+      setDeletingProductId(null)
     }
   }
 
+  const hasActiveFilters = Boolean(search.trim() || category.trim() || lowStockOnly)
+  const showPagination = meta && meta.total_pages > 1
   const columns = ['Product', 'Category', 'Stock', 'Reorder level', 'Status', 'Actions']
   const rows = products.map((product) => [
     <div key={product.product_id}><p className="font-semibold text-[#F8FAFC]">{product.product_name}</p><p className="text-[11px] text-[#00D9FF]">#{product.product_id}</p></div>,
@@ -77,15 +117,28 @@ const Products = () => {
     product.current_stock,
     product.reorder_threshold,
     <Badge key={`status-${product.product_id}`} tone={productStatus(product) === 'Low Stock' ? 'warning' : 'success'}>{productStatus(product)}</Badge>,
-    <div key={`actions-${product.product_id}`} className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => setViewingProduct(product)}><Eye className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" onClick={() => { setEditingProduct(product); setForm(product); setIsFormOpen(true) }}><Edit2 className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" onClick={() => deleteProduct(product)}><Trash2 className="h-3.5 w-3.5 text-[#EF4444]" /></Button></div>,
+    <div key={`actions-${product.product_id}`} className="flex gap-1"><Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => setViewingProduct(product)}><Eye className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => { setEditingProduct(product); setForm(productForm(product)); setIsFormOpen(true) }}><Edit2 className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" isLoading={deletingProductId === product.product_id} onClick={() => deleteProduct(product)}><Trash2 className="h-3.5 w-3.5 text-[#EF4444]" /></Button></div>,
   ])
 
   return <div className="space-y-8 animate-fade-in">
     <Header title="Products & Inventory" description="Manage the products owned by your store." badge="Live API" actions={<Button variant="primary" size="sm" onClick={() => { setEditingProduct(null); setForm(emptyProduct); setIsFormOpen(true) }}><Plus className="h-3.5 w-3.5" /> Add Product</Button>} />
-    <div className="flex flex-col gap-3 sm:flex-row"><SearchBar placeholder="Search product name..." value={search} onChange={(event) => { setPage(1); setSearch(event.target.value) }} /><Input placeholder="Filter category" value={category} onChange={(event) => { setPage(1); setCategory(event.target.value) }} /></div>
-    {loading ? <LoadingSpinner label="Loading products..." /> : error ? <ErrorState description={error} onRetry={loadProducts} /> : products.length === 0 ? <EmptyState title="No products found" description="Create your first product to begin managing inventory." action={<Button variant="primary" onClick={() => setIsFormOpen(true)}>Add Product</Button>} /> : <Card title="Product catalog" subtitle={`${meta?.total || products.length} products`}><Table columns={columns} rows={rows} /></Card>}
-    {meta ? <div className="flex items-center justify-between text-xs text-[#94A3B8]"><span>Page {meta.page} of {meta.total_pages}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={page >= meta.total_pages} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
-    <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingProduct ? 'Update Product' : 'Add Product'}><form className="space-y-4" onSubmit={submitProduct}><Input label="Product name" value={form.product_name} onChange={(event) => setForm({ ...form, product_name: event.target.value })} required /><Input label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required /><div className="grid grid-cols-2 gap-3"><Input label="Current stock" type="number" min="0" value={form.current_stock} onChange={(event) => setForm({ ...form, current_stock: event.target.value })} required /><Input label="Reorder threshold" type="number" min="0" value={form.reorder_threshold} onChange={(event) => setForm({ ...form, reorder_threshold: event.target.value })} required /></div><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setIsFormOpen(false)}>Cancel</Button><Button type="submit" variant="primary">Save Product</Button></div></form></Modal>
+    <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+      <SearchBar placeholder="Search product name..." value={search} onChange={(event) => { setPage(1); setSearch(event.target.value) }} />
+      <Input className="xl:w-72" placeholder="Filter category" value={category} onChange={(event) => { setPage(1); setCategory(event.target.value) }} />
+      <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#1F2937] bg-[#111827] px-3 text-xs text-[#94A3B8]">
+        <input
+          type="checkbox"
+          checked={lowStockOnly}
+          onChange={(event) => { setPage(1); setLowStockOnly(event.target.checked) }}
+          className="h-4 w-4 rounded border-[#1F2937] bg-[#111827] accent-[#00D9FF]"
+        />
+        Low stock only
+      </label>
+      {hasActiveFilters ? <Button variant="outline" size="sm" onClick={resetFilters}>Clear</Button> : null}
+    </div>
+    {loading ? <LoadingSpinner label="Loading products..." /> : error ? <ErrorState description={error} onRetry={loadProducts} /> : products.length === 0 ? <EmptyState title="No products found" description={hasActiveFilters ? 'No products match the current search or filters.' : 'Create your first product to begin managing inventory.'} action={hasActiveFilters ? <Button variant="outline" onClick={resetFilters}>Clear filters</Button> : <Button variant="primary" onClick={() => setIsFormOpen(true)}>Add Product</Button>} /> : <Card title="Product catalog" subtitle={`${meta?.total || products.length} products`}><Table columns={columns} rows={rows} /></Card>}
+    {showPagination ? <div className="flex items-center justify-between text-xs text-[#94A3B8]"><span>Page {meta.page} of {meta.total_pages}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={page >= meta.total_pages} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
+    <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingProduct ? 'Update Product' : 'Add Product'}><form className="space-y-4" onSubmit={submitProduct}><Input label="Product name" value={form.product_name} onChange={(event) => setForm({ ...form, product_name: event.target.value })} required /><Input label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required /><div className="grid grid-cols-2 gap-3"><Input label="Current stock" type="number" min="0" value={form.current_stock} onChange={(event) => setForm({ ...form, current_stock: event.target.value })} required /><Input label="Reorder threshold" type="number" min="0" value={form.reorder_threshold} onChange={(event) => setForm({ ...form, reorder_threshold: event.target.value })} required /></div><div className="flex justify-end gap-2"><Button variant="ghost" disabled={isSaving} onClick={() => setIsFormOpen(false)}>Cancel</Button><Button type="submit" variant="primary" isLoading={isSaving}>Save Product</Button></div></form></Modal>
     <Modal isOpen={Boolean(viewingProduct)} onClose={() => setViewingProduct(null)} title="Product details">{viewingProduct ? <dl className="grid grid-cols-2 gap-4 text-sm"><div><dt className="text-[#94A3B8]">Category</dt><dd>{viewingProduct.category}</dd></div><div><dt className="text-[#94A3B8]">Current stock</dt><dd>{viewingProduct.current_stock}</dd></div><div><dt className="text-[#94A3B8]">Reorder threshold</dt><dd>{viewingProduct.reorder_threshold}</dd></div></dl> : null}</Modal>
   </div>
 }
