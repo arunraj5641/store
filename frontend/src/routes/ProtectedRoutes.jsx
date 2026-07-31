@@ -1,18 +1,25 @@
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import DashboardLayout from '../layouts/DashboardLayout'
+import Analytics from '../pages/Analytics'
+import Assistant from '../pages/Assistant'
+import Customers from '../pages/Customers'
 import Dashboard from '../pages/Dashboard'
 import Inventory from '../pages/Inventory'
-import Products from '../pages/Products'
-import Sales from '../pages/Sales'
-import Customers from '../pages/Customers'
-import Analytics from '../pages/Analytics'
-import Notifications from '../pages/Notifications'
-import Assistant from '../pages/Assistant'
-import Profile from '../pages/Profile'
-import Settings from '../pages/Settings'
 import NotFound from '../pages/NotFound'
+import Notifications from '../pages/Notifications'
+import Products from '../pages/Products'
+import Profile from '../pages/Profile'
+import Sales from '../pages/Sales'
+import Settings from '../pages/Settings'
 
 const ProtectedRoutes = () => {
+  const { isAuthenticated } = useAuth()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
   return (
     <DashboardLayout>
       <Routes>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import PublicRoutes from './PublicRoutes'
 import ProtectedRoutes from './ProtectedRoutes'
 
@@ -6,7 +6,6 @@ const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/*" element={<PublicRoutes />} />
         <Route path="/dashboard/*" element={<ProtectedRoutes />} />
         <Route path="/inventory/*" element={<ProtectedRoutes />} />
         <Route path="/products/*" element={<ProtectedRoutes />} />
@@ -17,7 +16,7 @@ const AppRouter = () => {
         <Route path="/assistant/*" element={<ProtectedRoutes />} />
         <Route path="/profile/*" element={<ProtectedRoutes />} />
         <Route path="/settings/*" element={<ProtectedRoutes />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/*" element={<PublicRoutes />} />
       </Routes>
     </BrowserRouter>
   )
