@@ -49,7 +49,12 @@ class OllamaService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def generate(self, prompt: str) -> TestOllamaResponse:
+    async def generate(
+        self,
+        prompt: str,
+        system: str | None = None,
+        response_format: str | None = None,
+    ) -> TestOllamaResponse:
         if not self._settings.ollama_base_url:
             raise OllamaUnavailableError()
 
@@ -61,6 +66,10 @@ class OllamaService:
             "prompt": prompt,
             "stream": False,
         }
+        if system:
+            payload["system"] = system
+        if response_format:
+            payload["format"] = response_format
 
         try:
             async with httpx.AsyncClient(

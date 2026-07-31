@@ -30,8 +30,9 @@ module Api
 
       def create
         forecast = owned_forecasts.find(create_recommendation_params[:forecast_id])
-        recommendation = forecast.recommendations.build(
-          create_recommendation_params.except(:forecast_id).merge(product_id: forecast.product_id)
+        recommendation = build_recommendation_for_forecast(
+          forecast,
+          create_recommendation_params.except(:forecast_id)
         )
 
         return render_validation_error(errors: recommendation) unless recommendation.save
@@ -40,6 +41,27 @@ module Api
           message: "Recommendation created successfully.",
           data: { recommendation: serialize_recommendation(recommendation) }
         )
+      end
+
+      def generate
+        forecast = owned_forecasts.includes(:product, :festival).find(generate_recommendation_params[:forecast_id])
+        ai_recommendation = AiRecommendationClient.new.generate(ai_recommendation_payload(forecast))
+        recommendation = build_recommendation_for_forecast(
+          forecast,
+          ai_recommendation_attributes(ai_recommendation)
+        )
+
+        return render_validation_error(errors: recommendation) unless recommendation.save
+
+        render_created(
+          message: "AI recommendation generated successfully.",
+          data: {
+            recommendation: serialize_recommendation(recommendation),
+            ai_recommendation: ai_recommendation
+          }
+        )
+      rescue AiRecommendationClient::Error => error
+        render_error(message: error.message, status: error.status, errors: error.details)
       end
 
       def update
@@ -88,6 +110,10 @@ module Api
         params.require(:recommendation).permit(*update_recommendation_attributes)
       end
 
+      def generate_recommendation_params
+        params.require(:recommendation).permit(:forecast_id)
+      end
+
       def create_recommendation_attributes
         [:forecast_id, *update_recommendation_attributes]
       end
@@ -107,6 +133,55 @@ module Api
 
       def serialize_recommendation(recommendation)
         RecommendationSerializer.new(recommendation).as_json
+      end
+
+      def build_recommendation_for_forecast(forecast, attributes)
+        forecast.recommendations.build(attributes.merge(product_id: forecast.product_id))
+      end
+
+      def ai_recommendation_payload(forecast)
+        product = forecast.product
+        festival = forecast.festival
+
+        {
+          product: {
+            product_id: product.product_id,
+            product_name: product.product_name,
+            category: product.category,
+            current_stock: product.current_stock
+          },
+          forecast: {
+            forecast_id: forecast.forecast_id,
+            predicted_demand: forecast.predicted_demand,
+            forecast_date: forecast.forecast_date.iso8601
+          },
+          festival: {
+            festival_name: festival.festival_name,
+            festival_date: festival.festival_date.iso8601
+          },
+          sales_summary: sales_summary_for(product)
+        }
+      end
+
+      def sales_summary_for(product)
+        {
+          last_30_days: sales_quantity_since(product, 30.days.ago.to_date),
+          last_90_days: sales_quantity_since(product, 90.days.ago.to_date)
+        }
+      end
+
+      def sales_quantity_since(product, date)
+        product.sales_histories.where("sale_date >= ?", date).sum(:quantity_sold).to_i
+      end
+
+      def ai_recommendation_attributes(ai_recommendation)
+        attributes = {
+          recommended_quantity: ai_recommendation.fetch(:recommended_quantity),
+          priority: ai_recommendation.fetch(:priority),
+          status: Recommendation.statuses.fetch("pending")
+        }
+        attributes[:reason] = ai_recommendation[:reason] if Recommendation.attribute_names.include?("reason")
+        attributes
       end
     end
   end
