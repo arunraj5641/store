@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Edit2, Plus, Trash2 } from 'lucide-react'
+import { Edit2, Plus, Trash2, Upload } from 'lucide-react'
 import Header from '../components/common/Header'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -32,6 +32,11 @@ const Sales = () => {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [deletingSaleId, setDeletingSaleId] = useState(null)
+  const [importFile, setImportFile] = useState(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState(null)
+  const [importErrors, setImportErrors] = useState([])
+  const [importError, setImportError] = useState('')
 
   const loadSales = useCallback(async () => {
     setLoading(true); setError('')
@@ -107,6 +112,35 @@ const Sales = () => {
     try { await salesService.remove(sale.sales_id); await loadSales() } catch (requestError) { setError(requestError.response?.data?.message || 'Unable to delete sale.') } finally { setDeletingSaleId(null) }
   }
 
+  const submitImport = async (event) => {
+    event.preventDefault()
+    if (!importFile) {
+      setImportError('Choose a CSV file first.')
+      return
+    }
+
+    const formElement = event.currentTarget
+    setIsImporting(true)
+    setImportError('')
+    setImportResult(null)
+    setImportErrors([])
+
+    try {
+      const response = await salesService.importCsv(importFile)
+      setImportResult(response.data)
+      setImportErrors(response.errors || [])
+      setImportFile(null)
+      formElement.reset()
+      if (page !== 1) setPage(1)
+      else await loadSales()
+    } catch (requestError) {
+      setImportError(requestError.response?.data?.message || 'Unable to import CSV.')
+      setImportErrors(requestError.response?.data?.errors || [])
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   const hasActiveFilters = Boolean(productId || startDate || endDate)
   const showPagination = meta && meta.total_pages > 1
   const canCreateSale = products.length > 0 && !productsLoading
@@ -125,6 +159,18 @@ const Sales = () => {
       {hasActiveFilters ? <Button variant="outline" size="sm" onClick={resetFilters}>Clear</Button> : null}
     </div>
     {productsError ? <p className="text-xs text-[#EF4444]">{productsError}</p> : null}
+    <Card title="Import Sales CSV" subtitle="product_name,sale_date,quantity_sold">
+      <form className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end" onSubmit={submitImport}>
+        <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+          Choose File
+          <input type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] || null); setImportError(''); setImportResult(null); setImportErrors([]) }} className="w-full rounded-xl border border-[#1F2937] bg-[#111827] px-3.5 py-2.5 text-sm font-normal normal-case tracking-normal text-[#F8FAFC] file:mr-3 file:rounded-lg file:border-0 file:bg-[#1F2937] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#F8FAFC] hover:border-[#374151] focus:border-[#00D9FF] focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/20" />
+        </label>
+        <Button type="submit" variant="secondary" isLoading={isImporting} disabled={!importFile}><Upload className="h-3.5 w-3.5" /> Upload</Button>
+      </form>
+      {importError ? <p className="mt-3 text-xs text-[#EF4444]">{importError}</p> : null}
+      {importResult ? <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div className="rounded-xl border border-[#1F2937] bg-[#030712]/40 p-3"><p className="text-xs text-[#94A3B8]">Imported</p><p className="mt-1 text-lg font-semibold text-[#22C55E]">{importResult.imported}</p></div><div className="rounded-xl border border-[#1F2937] bg-[#030712]/40 p-3"><p className="text-xs text-[#94A3B8]">Failed</p><p className="mt-1 text-lg font-semibold text-[#EF4444]">{importResult.failed}</p></div><div className="rounded-xl border border-[#1F2937] bg-[#030712]/40 p-3"><p className="text-xs text-[#94A3B8]">Total</p><p className="mt-1 text-lg font-semibold text-[#F8FAFC]">{importResult.total_rows}</p></div></div> : null}
+      {importErrors.length > 0 ? <div className="mt-4 max-h-40 overflow-auto rounded-xl border border-[#7F1D1D]/50 bg-[#450A0A]/20 p-3 text-xs text-[#FCA5A5]">{importErrors.slice(0, 20).map((rowError, index) => <p key={`${rowError.row || 'file'}-${index}`}>Row {rowError.row || '-'}: {rowError.message}</p>)}</div> : null}
+    </Card>
     {loading ? <LoadingSpinner label="Loading sales..." /> : error ? <ErrorState description={error} onRetry={loadSales} /> : sales.length === 0 ? <EmptyState title="No sales found" description={hasActiveFilters ? 'No sales match the selected product or date range.' : canCreateSale ? 'Record a sale against one of your products.' : 'Create a product before recording sales.'} action={hasActiveFilters ? <Button variant="outline" onClick={resetFilters}>Clear filters</Button> : canCreateSale ? <Button variant="primary" onClick={openCreateForm}>Record Sale</Button> : null} /> : <Card title="Sales records" subtitle={`${meta?.total || sales.length} sales`}><Table columns={['Sale ID', 'Product', 'Sale date', 'Quantity', 'Actions']} rows={rows} /></Card>}
     {showPagination ? <div className="flex justify-between text-xs text-[#94A3B8]"><span>Page {meta.page} of {meta.total_pages}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={page >= meta.total_pages} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
     <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingSale ? 'Update Sale' : 'Record Sale'}><form className="space-y-4" onSubmit={submitSale}>{!editingSale ? <select required value={form.product_id} disabled={productsLoading} onChange={(event) => setForm({ ...form, product_id: event.target.value })} className="w-full rounded-xl border border-[#1F2937] bg-[#111827] px-3 py-2 text-sm"><option value="">Select product</option>{products.map((product) => <option key={product.product_id} value={product.product_id}>{product.product_name}</option>)}</select> : <p className="text-sm text-[#94A3B8]">{productName(editingSale.product_id)}</p>}<Input label="Sale date" type="date" value={form.sale_date} onChange={(event) => setForm({ ...form, sale_date: event.target.value })} required /><Input label="Quantity sold" type="number" min="1" value={form.quantity_sold} onChange={(event) => setForm({ ...form, quantity_sold: event.target.value })} required /><div className="flex justify-end gap-2"><Button variant="ghost" disabled={isSaving} onClick={() => setIsFormOpen(false)}>Cancel</Button><Button type="submit" variant="primary" isLoading={isSaving}>Save Sale</Button></div></form></Modal>

@@ -13,6 +13,7 @@ Rails.application.routes.draw do
 
       get "sales_histories", to: "sales_histories#index"
       post "sales_histories", to: "sales_histories#create"
+      post "sales_histories/import", to: "sales_history_imports#create"
       get "sales_histories/:id", to: "sales_histories#show"
       put "sales_histories/:id", to: "sales_histories#update"
       delete "sales_histories/:id", to: "sales_histories#destroy"
@@ -28,6 +29,18 @@ Rails.application.routes.draw do
       get "forecasts/:id", to: "forecasts#show"
       put "forecasts/:id", to: "forecasts#update"
       delete "forecasts/:id", to: "forecasts#destroy"
+
+      get "recommendations", to: "recommendations#index"
+      post "recommendations", to: "recommendations#create"
+      get "recommendations/:id", to: "recommendations#show"
+      put "recommendations/:id", to: "recommendations#update"
+      delete "recommendations/:id", to: "recommendations#destroy"
+
+      get "notifications", to: "notifications#index"
+      post "notifications", to: "notifications#create"
+      get "notifications/:id", to: "notifications#show"
+      put "notifications/:id", to: "notifications#update"
+      delete "notifications/:id", to: "notifications#destroy"
     end
   end
 
