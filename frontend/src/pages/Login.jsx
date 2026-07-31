@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Mail, AlertCircle, ArrowRight } from 'lucide-react'
 import AuthCard from '../components/auth/AuthCard'
 import PasswordInput from '../components/auth/PasswordInput'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
 import { useAuth } from '../contexts/AuthContext'
 
 const Login = () => {
@@ -9,6 +12,7 @@ const Login = () => {
   const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '', remember: false })
   const [errors, setErrors] = useState({})
+  const [isLoading, setIsLoading] = useState(false)
 
   const validate = () => {
     const nextErrors = {}
@@ -24,9 +28,13 @@ const Login = () => {
     event.preventDefault()
     if (!validate()) return
 
-    const result = login(form)
-    if (result.success) navigate('/dashboard')
-    else setErrors((current) => ({ ...current, form: result.message }))
+    setIsLoading(true)
+    setTimeout(() => {
+      const result = login(form)
+      setIsLoading(false)
+      if (result.success) navigate('/dashboard')
+      else setErrors((current) => ({ ...current, form: result.message }))
+    }, 300)
   }
 
   return (
@@ -34,24 +42,25 @@ const Login = () => {
       title="Welcome back"
       subtitle="Sign in to your store workspace and continue with your operations."
       footer={
-        <p>
+        <p className="text-xs text-[#94A3B8]">
           New here?{' '}
-          <Link to="/signup" className="font-semibold text-cyan-300 transition hover:text-cyan-200">Create an account</Link>
+          <Link to="/signup" className="font-semibold text-[#00D9FF] transition hover:text-[#38BDF8]">
+            Create an account
+          </Link>
         </p>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Email</label>
-          <input
-            type="email"
-            value={form.email}
-            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-            className={`w-full rounded-xl border px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-cyan-400 ${errors.email ? 'border-rose-500/50 bg-rose-500/10' : 'border-slate-700 bg-slate-900'}`.trim()}
-            placeholder="you@example.com"
-          />
-          {errors.email ? <p className="mt-2 text-xs text-rose-300">{errors.email}</p> : null}
-        </div>
+        <Input
+          label="Email address"
+          type="email"
+          icon={Mail}
+          value={form.email}
+          onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+          error={Boolean(errors.email)}
+          helperText={errors.email}
+          placeholder="you@example.com"
+        />
 
         <PasswordInput
           label="Password"
@@ -62,20 +71,43 @@ const Login = () => {
           placeholder="Enter your password"
         />
 
-        <div className="flex items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm text-slate-400">
-            <input type="checkbox" checked={form.remember} onChange={() => setForm((current) => ({ ...current, remember: !current.remember }))} className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500" />
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <label className="flex items-center gap-2.5 text-xs text-[#94A3B8] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.remember}
+              onChange={() => setForm((current) => ({ ...current, remember: !current.remember }))}
+              className="h-4 w-4 rounded border-[#1F2937] bg-[#111827] text-[#00D9FF] accent-[#00D9FF] focus:ring-1 focus:ring-[#00D9FF]"
+            />
             Remember me
           </label>
-          <Link to="/forgot-password" className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200">Forgot password?</Link>
+          <Link
+            to="/forgot-password"
+            className="text-xs font-semibold text-[#00D9FF] transition hover:text-[#38BDF8]"
+          >
+            Forgot password?
+          </Link>
         </div>
 
-        {errors.form ? <p className="text-sm text-rose-300">{errors.form}</p> : null}
+        {errors.form ? (
+          <div className="flex items-center gap-2 rounded-xl border border-[#EF4444]/40 bg-[#EF4444]/10 p-3 text-xs text-[#EF4444]">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{errors.form}</span>
+          </div>
+        ) : null}
 
-        <button type="submit" className="w-full rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">Login</button>
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isLoading}
+          className="w-full mt-2"
+        >
+          Sign In <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
       </form>
     </AuthCard>
   )
 }
 
 export default Login
+

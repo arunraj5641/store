@@ -6,20 +6,15 @@ const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/dashboard/*" element={<ProtectedRoutes />} />
-        <Route path="/inventory/*" element={<ProtectedRoutes />} />
-        <Route path="/products/*" element={<ProtectedRoutes />} />
-        <Route path="/sales/*" element={<ProtectedRoutes />} />
-        <Route path="/customers/*" element={<ProtectedRoutes />} />
-        <Route path="/analytics/*" element={<ProtectedRoutes />} />
-        <Route path="/notifications/*" element={<ProtectedRoutes />} />
-        <Route path="/assistant/*" element={<ProtectedRoutes />} />
-        <Route path="/profile/*" element={<ProtectedRoutes />} />
-        <Route path="/settings/*" element={<ProtectedRoutes />} />
-        <Route path="/*" element={<PublicRoutes />} />
+        <Route path="/" element={<PublicRoutes />} />
+        <Route path="/login" element={<PublicRoutes />} />
+        <Route path="/signup" element={<PublicRoutes />} />
+        <Route path="/forgot-password" element={<PublicRoutes />} />
+        <Route path="/*" element={<ProtectedRoutes />} />
       </Routes>
     </BrowserRouter>
   )
 }
 
 export default AppRouter
+

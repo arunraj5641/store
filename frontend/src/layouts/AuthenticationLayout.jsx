@@ -1,7 +1,11 @@
 const AuthenticationLayout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,217,255,0.16),_transparent_45%),#030712] text-slate-100">
-      <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-10">
+    <div className="relative flex min-h-screen w-full items-center justify-center bg-[#030712] px-4 py-12 text-[#F8FAFC]">
+      {/* Background Glow Overlay */}
+      <div className="pointer-events-none fixed inset-0 z-0 bg-radial-auth opacity-90" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-grid-pattern opacity-25" />
+
+      <main className="relative z-10 flex w-full max-w-md items-center justify-center animate-fade-in">
         {children}
       </main>
     </div>
@@ -9,3 +13,4 @@ const AuthenticationLayout = ({ children }) => {
 }
 
 export default AuthenticationLayout
+
