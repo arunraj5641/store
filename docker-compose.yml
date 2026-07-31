@@ -67,16 +67,30 @@ services:
     networks:
       - app-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai_support_copilot_ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - app-network
+
   ai-service:
     build:
       context: ./ai-service
     container_name: ai_support_copilot_ai_service
     restart: unless-stopped
+    depends_on:
+      - ollama
     environment:
       SERVICE_NAME: ${SERVICE_NAME:-ai-service}
       SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-30}
       RAILS_API_URL: ${RAILS_API_URL:-}
     ports:
       - "8000:8000"
@@ -93,3 +107,4 @@ volumes:
   postgres_data:
   backend_bundle:
   frontend_node_modules:
+  ollama_data:

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
         validation_alias="OLLAMA_BASE_URL",
     )
     ollama_model: str | None = Field(default=None, validation_alias="OLLAMA_MODEL")
+    ollama_timeout_seconds: float = Field(
+        default=30.0,
+        validation_alias="OLLAMA_TIMEOUT_SECONDS",
+    )
     rails_api_url: str | None = Field(default=None, validation_alias="RAILS_API_URL")
 
     @field_validator("ollama_base_url", "ollama_model", "rails_api_url", mode="before")
