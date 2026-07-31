@@ -3,6 +3,8 @@ import {
   Box,
   ShoppingBag,
   TrendingUp,
+  CalendarDays,
+  ChartNoAxesCombined,
   Users,
   BarChart3,
   Sparkles,
@@ -25,6 +27,8 @@ const Sidebar = () => {
     { to: '/inventory', label: 'Inventory', icon: Box },
     { to: '/products', label: 'Products', icon: ShoppingBag },
     { to: '/sales', label: 'Sales', icon: TrendingUp },
+    { to: '/festivals', label: 'Festivals', icon: CalendarDays },
+    { to: '/forecasts', label: 'Forecasts', icon: ChartNoAxesCombined },
     { to: '/customers', label: 'Customers', icon: Users },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/assistant', label: 'AI Assistant', icon: Sparkles, badge: 'AI' },
@@ -115,4 +119,3 @@ const Sidebar = () => {
 }
 
 export default Sidebar
-

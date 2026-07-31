@@ -11,10 +11,14 @@ import Notifications from '../pages/Notifications'
 import Products from '../pages/Products'
 import Profile from '../pages/Profile'
 import Sales from '../pages/Sales'
+import Festivals from '../pages/Festivals'
+import Forecasts from '../pages/Forecasts'
 import Settings from '../pages/Settings'
 
 const ProtectedRoutes = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) return null
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -28,6 +32,8 @@ const ProtectedRoutes = () => {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/products" element={<Products />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="/festivals" element={<Festivals />} />
+        <Route path="/forecasts" element={<Forecasts />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/notifications" element={<Notifications />} />
