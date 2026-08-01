@@ -3,6 +3,8 @@ module Api
     class AiController < BaseController
       before_action :authenticate_user!
 
+      STORE_DATA_LIMIT = 5
+
       def chat
         message = chat_params[:message].to_s.strip
 
@@ -45,7 +47,8 @@ module Api
       def low_stock_products
         current_user.products
                     .low_stock
-                    .order(product_id: :asc)
+                    .order(current_stock: :asc, product_id: :asc)
+                    .limit(STORE_DATA_LIMIT)
                     .map do |product|
           {
             product_id: product.product_id,
@@ -60,7 +63,8 @@ module Api
       def high_priority_recommendations
         Recommendation.high_priority
                       .where(product_id: current_user.products.select(:product_id))
-                      .order(recommendation_id: :asc)
+                      .order(created_at: :desc, recommendation_id: :desc)
+                      .limit(STORE_DATA_LIMIT)
                       .map do |recommendation|
           {
             recommendation_id: recommendation.recommendation_id,
@@ -73,11 +77,15 @@ module Api
       end
 
       def top_selling_products_last_30_days
-        product_sales_rankings.sort_by { |product| [-product[:quantity_sold], product[:product_name]] }
+        product_sales_rankings
+          .sort_by { |product| [-product[:quantity_sold], product[:product_name]] }
+          .first(STORE_DATA_LIMIT)
       end
 
       def lowest_selling_products_last_30_days
-        product_sales_rankings.sort_by { |product| [product[:quantity_sold], product[:product_name]] }
+        product_sales_rankings
+          .sort_by { |product| [product[:quantity_sold], product[:product_name]] }
+          .first(STORE_DATA_LIMIT)
       end
 
       def product_sales_rankings
@@ -107,6 +115,7 @@ module Api
         Forecast.where(product_id: current_user.products.select(:product_id))
                 .includes(:product, :festival)
                 .order(predicted_demand: :desc, forecast_id: :asc)
+                .limit(STORE_DATA_LIMIT)
                 .map do |forecast|
           {
             forecast_id: forecast.forecast_id,
@@ -121,7 +130,10 @@ module Api
       end
 
       def upcoming_festivals
-        Festival.upcoming.order(festival_date: :asc, festival_id: :asc).map do |festival|
+        Festival.upcoming
+                .order(festival_date: :asc, festival_id: :asc)
+                .limit(STORE_DATA_LIMIT)
+                .map do |festival|
           {
             festival_id: festival.festival_id,
             festival_name: festival.festival_name,
