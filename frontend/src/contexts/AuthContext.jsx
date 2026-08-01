@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { clearStoredToken, getStoredToken } from '../services/api/client'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 import authService from '../services/auth'
+import { clearStoredAssistantChatMessages } from '../services/ai/chatSession'
 
 export const AuthContext = createContext(null)
 
@@ -10,6 +12,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     authService.logout()
+    clearStoredAssistantChatMessages()
     setUser(null)
   }, [])
 
@@ -25,6 +28,7 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.user)
       } catch {
         clearStoredToken()
+        clearStoredAssistantChatMessages()
         setUser(null)
       } finally {
         setIsLoading(false)
@@ -42,7 +46,12 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user)
       return { success: true, message: response.message }
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Unable to sign in.' }
+      return {
+        success: false,
+        message: getFriendlyErrorMessage(error, 'We could not sign you in. Please try again.', {
+          unauthorizedMessage: 'Email or password is incorrect.',
+        }),
+      }
     }
   }
 
@@ -52,7 +61,10 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user)
       return { success: true, message: response.message }
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Unable to create your account.' }
+      return {
+        success: false,
+        message: getFriendlyErrorMessage(error, 'We could not create your account. Please try again.'),
+      }
     }
   }
 

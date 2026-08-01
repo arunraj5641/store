@@ -11,6 +11,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import EmptyState from '../components/common/EmptyState'
 import ErrorState from '../components/common/ErrorState'
 import festivalsService from '../services/festivals'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 
 const emptyFestival = { festival_name: '', festival_date: '', season: '' }
 
@@ -50,7 +51,7 @@ const Festivals = () => {
       setFestivals(response.data.festivals || [])
       setMeta(response.meta)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load festivals.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load festivals. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -87,7 +88,7 @@ const Festivals = () => {
       if (!editing) setPage(1)
       await load()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to save festival.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not save this festival. Please review the details and try again.'))
     } finally {
       setIsSaving(false)
     }
@@ -102,7 +103,7 @@ const Festivals = () => {
       await festivalsService.remove(festival.festival_id)
       await load()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to delete festival.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not delete this festival. Please try again.'))
     } finally {
       setDeletingFestivalId(null)
     }

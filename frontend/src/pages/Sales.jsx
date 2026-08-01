@@ -12,6 +12,7 @@ import ErrorState from '../components/common/ErrorState'
 import salesService from '../services/sales'
 import inventoryService from '../services/inventory'
 import { fetchAllPages } from '../services/api/pagination'
+import { getFriendlyCsvRowErrors, getFriendlyErrorMessage } from '../services/api/errors'
 
 const emptySale = () => ({ product_id: '', sale_date: new Date().toISOString().slice(0, 10), quantity_sold: '' })
 
@@ -48,7 +49,7 @@ const Sales = () => {
       }
 
       setSales(response.data.sales_histories || []); setMeta(response.meta)
-    } catch (requestError) { setError(requestError.response?.data?.message || 'Unable to load sales.') } finally { setLoading(false) }
+    } catch (requestError) { setError(getFriendlyErrorMessage(requestError, 'We could not load sales. Please try again.')) } finally { setLoading(false) }
   }, [page, productId, startDate, endDate])
 
   useEffect(() => { loadSales() }, [loadSales])
@@ -62,7 +63,7 @@ const Sales = () => {
         const allProducts = await fetchAllPages(inventoryService.list, 'products')
         if (isMounted) setProducts(allProducts)
       } catch (requestError) {
-        if (isMounted) setProductsError(requestError.response?.data?.message || 'Unable to load products for sales.')
+        if (isMounted) setProductsError(getFriendlyErrorMessage(requestError, 'We could not load products for sales. Please try again.'))
       } finally {
         if (isMounted) setProductsLoading(false)
       }
@@ -102,14 +103,14 @@ const Sales = () => {
       setIsFormOpen(false); setEditingSale(null); setForm(emptySale())
       if (!editingSale && page !== 1) setPage(1)
       else await loadSales()
-    } catch (requestError) { setError(requestError.response?.data?.message || 'Unable to save sale.') } finally { setIsSaving(false) }
+    } catch (requestError) { setError(getFriendlyErrorMessage(requestError, 'We could not save this sale. Please review the details and try again.')) } finally { setIsSaving(false) }
   }
 
   const deleteSale = async (sale) => {
     if (!window.confirm('Delete this sale record?')) return
     setDeletingSaleId(sale.sales_id)
     setError('')
-    try { await salesService.remove(sale.sales_id); await loadSales() } catch (requestError) { setError(requestError.response?.data?.message || 'Unable to delete sale.') } finally { setDeletingSaleId(null) }
+    try { await salesService.remove(sale.sales_id); await loadSales() } catch (requestError) { setError(getFriendlyErrorMessage(requestError, 'We could not delete this sale. Please try again.')) } finally { setDeletingSaleId(null) }
   }
 
   const submitImport = async (event) => {
@@ -128,14 +129,16 @@ const Sales = () => {
     try {
       const response = await salesService.importCsv(importFile)
       setImportResult(response.data)
-      setImportErrors(response.errors || [])
+      setImportErrors(getFriendlyCsvRowErrors(response.errors || []))
       setImportFile(null)
       formElement.reset()
       if (page !== 1) setPage(1)
       else await loadSales()
     } catch (requestError) {
-      setImportError(requestError.response?.data?.message || 'Unable to import CSV.')
-      setImportErrors(requestError.response?.data?.errors || [])
+      setImportError(getFriendlyErrorMessage(requestError, 'We could not import this CSV. Check the file format and try again.', {
+        badRequestMessage: 'We could not read this CSV. Make sure it includes product_name, sale_date, and quantity_sold.',
+      }))
+      setImportErrors(getFriendlyCsvRowErrors(requestError.response?.data?.errors || []))
     } finally {
       setIsImporting(false)
     }

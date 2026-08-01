@@ -21,6 +21,7 @@ import apiClient from '../services/api/client'
 import inventoryService from '../services/inventory'
 import salesService from '../services/sales'
 import { fetchAllPages } from '../services/api/pagination'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 import { PROTECTED_ROUTES } from '../constants/routes'
 
 const numberFormatter = new Intl.NumberFormat('en-IN')
@@ -304,7 +305,7 @@ const Dashboard = () => {
       setRecentRecommendations(recentRecommendationsResponse.data?.recommendations || [])
       setRecentNotifications(notificationsResponse?.data?.notifications || [])
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load dashboard data.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load the dashboard. Please try again.'))
     } finally {
       setLoading(false)
     }

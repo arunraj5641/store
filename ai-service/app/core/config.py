@@ -22,12 +22,14 @@ class Settings(BaseSettings):
     )
     ollama_model: str | None = Field(default=None, validation_alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(
-        default=30.0,
+        default=90.0,
         validation_alias="OLLAMA_TIMEOUT_SECONDS",
     )
     rails_api_url: str | None = Field(default=None, validation_alias="RAILS_API_URL")
+    rails_api_token: str | None = Field(default=None, validation_alias="RAILS_API_TOKEN")
+    forecast_models_dir: str = Field(default="models", validation_alias="FORECAST_MODELS_DIR")
 
-    @field_validator("ollama_base_url", "ollama_model", "rails_api_url", mode="before")
+    @field_validator("ollama_base_url", "ollama_model", "rails_api_url", "rails_api_token", mode="before")
     @classmethod
     def empty_string_to_none(cls, value: str | None) -> str | None:
         if value == "":

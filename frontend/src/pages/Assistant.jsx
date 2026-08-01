@@ -4,6 +4,12 @@ import Header from '../components/common/Header'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import aiService from '../services/ai'
+import { getFriendlyErrorMessage } from '../services/api/errors'
+import {
+  clearStoredAssistantChatMessages,
+  loadStoredAssistantChatMessages,
+  storeAssistantChatMessages,
+} from '../services/ai/chatSession'
 
 const chatTimestamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -17,7 +23,7 @@ const initialMessages = () => [
 ]
 
 const Assistant = () => {
-  const [messages, setMessages] = useState(() => initialMessages())
+  const [messages, setMessages] = useState(() => loadStoredAssistantChatMessages() || initialMessages())
 
   const [inputQuery, setInputQuery] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -40,6 +46,16 @@ const Assistant = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
+  useEffect(() => {
+    storeAssistantChatMessages(messages)
+  }, [messages])
+
+  const handleStartNewChat = () => {
+    clearStoredAssistantChatMessages()
+    setMessages(initialMessages())
+    setInputQuery('')
+  }
+
   const handleSendMessage = async (textToSend) => {
     const query = (textToSend || inputQuery).trim()
     if (!query.trim()) return
@@ -60,7 +76,7 @@ const Assistant = () => {
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: response.data?.reply || 'AI service returned an empty response.',
+        text: response.data?.reply || 'AI Co-pilot did not return a response. Please try again.',
         time: chatTimestamp(),
       }
 
@@ -69,7 +85,10 @@ const Assistant = () => {
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: error.response?.data?.message || 'AI Co-pilot is unavailable right now. Please try again shortly.',
+        text: getFriendlyErrorMessage(error, 'AI Co-pilot is unavailable right now. Please try again shortly.', {
+          serviceMessage: 'AI Co-pilot is taking longer than expected. Try a shorter question or try again shortly.',
+          validationMessage: 'Please enter a question for AI Co-pilot.',
+        }),
         time: chatTimestamp(),
       }
 
@@ -86,7 +105,7 @@ const Assistant = () => {
         description="Ask intelligent questions about inventory forecasts, profit margins, supplier orders, and credit ledgers."
         badge="AI Co-pilot v1.0"
         actions={
-          <Button variant="outline" size="sm" onClick={() => setMessages(initialMessages())}>
+          <Button variant="outline" size="sm" onClick={handleStartNewChat}>
             <RefreshCw className="h-3.5 w-3.5" /> Clear Chat
           </Button>
         }
@@ -111,7 +130,7 @@ const Assistant = () => {
         {/* History Sidebar */}
         <Card title="Saved Conversations" className="hidden lg:flex flex-col justify-between h-[540px] p-4">
           <div className="space-y-2">
-            <Button variant="outline" size="sm" className="w-full justify-start text-xs">
+            <Button variant="outline" size="sm" className="w-full justify-start text-xs" onClick={handleStartNewChat}>
               <Plus className="h-3.5 w-3.5" /> New Conversation
             </Button>
             <div className="pt-3 space-y-1">

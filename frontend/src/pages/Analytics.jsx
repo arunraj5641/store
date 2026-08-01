@@ -13,6 +13,7 @@ import forecastsService from '../services/forecasts'
 import inventoryService from '../services/inventory'
 import salesService from '../services/sales'
 import { fetchAllPages } from '../services/api/pagination'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 
 const numberFormatter = new Intl.NumberFormat('en-IN')
 
@@ -134,7 +135,7 @@ const Analytics = () => {
         )),
       )
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load analytics.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load analytics. Please try again.'))
     } finally {
       setLoading(false)
     }

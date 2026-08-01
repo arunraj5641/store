@@ -25,8 +25,11 @@ module Api
       end
 
       def create
-        product = current_user.products.find(create_sales_history_params[:product_id])
-        sales_history = product.sales_histories.build(create_sales_history_params.except(:product_id))
+        attributes = create_sales_history_params
+        return render_validation_error(errors: { product_id: ["can't be blank"] }) if attributes[:product_id].blank?
+
+        product = current_user.products.find(attributes[:product_id])
+        sales_history = product.sales_histories.build(attributes.except(:product_id))
 
         return render_validation_error(errors: sales_history) unless sales_history.save
 
@@ -66,11 +69,21 @@ module Api
       end
 
       def filtered_sales_histories
-        sales_histories = SalesHistory.where(product_id: current_user.products.select(:product_id))
-        sales_histories = sales_histories.where(product_id: params[:product_id]) if params[:product_id].present?
-        sales_histories = sales_histories.where("sale_date >= ?", params[:start_date]) if params[:start_date].present?
-        sales_histories = sales_histories.where("sale_date <= ?", params[:end_date]) if params[:end_date].present?
+        sales_histories = if params[:product_id].present?
+                            current_user.products.find(params[:product_id]).sales_histories
+                          else
+                            SalesHistory.where(product_id: current_user.products.select(:product_id))
+                          end
+
+        sales_histories = sales_histories.where("sale_date >= ?", parsed_date_param(:start_date)) if params[:start_date].present?
+        sales_histories = sales_histories.where("sale_date <= ?", parsed_date_param(:end_date)) if params[:end_date].present?
         sales_histories
+      end
+
+      def parsed_date_param(key)
+        Date.iso8601(params[key].to_s)
+      rescue ArgumentError
+        raise ActionController::BadRequest, "#{key} must be a valid ISO 8601 date."
       end
 
       def pagination_params

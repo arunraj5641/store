@@ -1,4 +1,5 @@
 import apiClient, { clearStoredToken, storeToken } from '../api/client'
+import { clearStoredAssistantChatMessages } from '../ai/chatSession'
 
 const unwrap = (response) => response.data
 
@@ -36,6 +37,7 @@ export const authService = {
 
   logout() {
     clearStoredToken()
+    clearStoredAssistantChatMessages()
   },
 }
 

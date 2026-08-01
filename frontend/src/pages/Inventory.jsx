@@ -12,6 +12,7 @@ import EmptyState from '../components/common/EmptyState'
 import ErrorState from '../components/common/ErrorState'
 import inventoryService from '../services/inventory'
 import { fetchAllPages } from '../services/api/pagination'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 import { PROTECTED_ROUTES } from '../constants/routes'
 
 const PAGE_SIZE = 10
@@ -133,7 +134,7 @@ const Inventory = () => {
       const allProducts = await fetchAllPages(inventoryService.list, 'products')
       setProducts(allProducts)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load inventory.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load inventory. Please try again.'))
     } finally {
       setLoading(false)
     }

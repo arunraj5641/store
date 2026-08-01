@@ -1,5 +1,14 @@
 Rails.application.routes.draw do
   namespace :api do
+    scope module: :v1 do
+      get "sales_history", to: "sales_histories#index"
+      post "sales_history", to: "sales_histories#create"
+      get "sales_history/:id", to: "sales_histories#show"
+      put "sales_history/:id", to: "sales_histories#update"
+      delete "sales_history/:id", to: "sales_histories#destroy"
+      get "products/:product_id/sales_history", to: "sales_histories#index"
+    end
+
     namespace :v1 do
       post "signup", to: "auth#signup"
       post "login", to: "auth#login"
@@ -9,9 +18,16 @@ Rails.application.routes.draw do
 
       get "products", to: "products#index"
       post "products", to: "products#create"
+      get "products/:product_id/sales_history", to: "sales_histories#index"
       get "products/:id", to: "products#show"
       put "products/:id", to: "products#update"
       delete "products/:id", to: "products#destroy"
+
+      get "sales_history", to: "sales_histories#index"
+      post "sales_history", to: "sales_histories#create"
+      get "sales_history/:id", to: "sales_histories#show"
+      put "sales_history/:id", to: "sales_histories#update"
+      delete "sales_history/:id", to: "sales_histories#destroy"
 
       get "sales_histories", to: "sales_histories#index"
       post "sales_histories", to: "sales_histories#create"

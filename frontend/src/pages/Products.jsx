@@ -12,6 +12,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import EmptyState from '../components/common/EmptyState'
 import ErrorState from '../components/common/ErrorState'
 import inventoryService from '../services/inventory'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 
 const emptyProduct = { product_name: '', category: '', current_stock: '', reorder_threshold: '' }
 const productStatus = (product) => product.current_stock <= product.reorder_threshold ? 'Low Stock' : 'In Stock'
@@ -52,7 +53,7 @@ const Products = () => {
       setProducts(response.data.products)
       setMeta(response.meta)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load products.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load products. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -88,7 +89,7 @@ const Products = () => {
       if (!editingProduct) setPage(1)
       await loadProducts()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to save product.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not save this product. Please review the details and try again.'))
     } finally {
       setIsSaving(false)
     }
@@ -102,7 +103,7 @@ const Products = () => {
       await inventoryService.remove(product.product_id)
       await loadProducts()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to delete product.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not delete this product. Please try again.'))
     } finally {
       setDeletingProductId(null)
     }

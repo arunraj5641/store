@@ -15,6 +15,7 @@ import inventoryService from '../services/inventory'
 import festivalsService from '../services/festivals'
 import recommendationsService from '../services/recommendations'
 import { fetchAllPages } from '../services/api/pagination'
+import { getFriendlyErrorMessage } from '../services/api/errors'
 
 const emptyForecast = { product_id: '', festival_id: '', forecast_date: '', predicted_demand: '' }
 
@@ -58,7 +59,7 @@ const Forecasts = () => {
       setForecasts(response.data.forecasts || [])
       setMeta(response.meta)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load forecasts.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not load forecasts. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -85,7 +86,7 @@ const Forecasts = () => {
           setFestivals(allFestivals)
         }
       } catch (requestError) {
-        if (isMounted) setOptionsError(requestError.response?.data?.message || 'Unable to load products and festivals for forecasts.')
+        if (isMounted) setOptionsError(getFriendlyErrorMessage(requestError, 'We could not load products and festivals for forecasts. Please try again.'))
       } finally {
         if (isMounted) setOptionsLoading(false)
       }
@@ -141,7 +142,7 @@ const Forecasts = () => {
       if (!editing && page !== 1) setPage(1)
       else await load()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to save forecast.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not save this forecast. Please review the details and try again.'))
     } finally {
       setIsSaving(false)
     }
@@ -156,7 +157,7 @@ const Forecasts = () => {
       await forecastsService.remove(forecast.forecast_id)
       await load()
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to delete forecast.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not delete this forecast. Please try again.'))
     } finally {
       setDeletingForecastId(null)
     }
@@ -174,7 +175,9 @@ const Forecasts = () => {
         ai: response.data.ai_recommendation,
       })
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to generate AI recommendation.')
+      setError(getFriendlyErrorMessage(requestError, 'We could not generate a recommendation for this forecast. Please try again.', {
+        serviceMessage: 'AI recommendation generation is taking longer than expected. Please try again shortly.',
+      }))
     } finally {
       setGeneratingForecastId(null)
     }

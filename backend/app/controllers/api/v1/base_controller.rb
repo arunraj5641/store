@@ -8,6 +8,7 @@ module Api
       rescue_from ActiveRecord::RecordNotFound, with: :handle_record_not_found
       rescue_from ActiveRecord::RecordInvalid, with: :handle_record_invalid
       rescue_from ActionController::ParameterMissing, with: :handle_parameter_missing
+      rescue_from ActionController::BadRequest, with: :handle_bad_request
       rescue_from ActiveRecord::RecordNotUnique, with: :handle_record_not_unique
 
       private
@@ -25,6 +26,10 @@ module Api
           message: "Required parameter missing: #{exception.param}.",
           status: :bad_request
         )
+      end
+
+      def handle_bad_request(exception)
+        render_error(message: exception.message.presence || "Bad request.", status: :bad_request)
       end
 
       def handle_record_not_unique(_exception)

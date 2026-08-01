@@ -39,13 +39,44 @@ product_data = [
   end
 end
 
+sales_profiles = {
+  "Grains" => 20,
+  "Staples" => 16,
+  "Cooking Oil" => 7,
+  "Dairy" => 10,
+  "Beverages" => 9,
+  "Snacks" => 18,
+  "Bakery" => 11,
+  "Personal Care" => 6,
+  "Household" => 5,
+  "Soft Drinks" => 14,
+  "Pulses" => 13
+}.freeze
+
 product_data.each_with_index do |product, product_index|
-  90.times do |days_ago|
+  product.sales_histories.destroy_all
+
+  random = Random.new(product.product_id.to_i + product_index + 10_000)
+  base_quantity = sales_profiles.fetch(product.category, 10)
+
+  60.times do |days_ago|
     sale_date = days_ago.days.ago.to_date
-    product.sales_histories.find_or_create_by!(sale_date: sale_date) do |sale|
-      sale.quantity_sold = 2 + ((product_index * 7 + days_ago * 3) % 12)
-    end
+    weekday_boost = sale_date.saturday? || sale_date.sunday? ? 1.18 : 1.0
+    payday_boost = sale_date.day <= 5 ? 1.12 : 1.0
+    weekly_wave = 1 + (Math.sin((days_ago + product_index) * Math::PI / 7) * 0.12)
+    variation = random.rand(0.78..1.24)
+
+    quantity_sold = (base_quantity * weekday_boost * payday_boost * weekly_wave * variation).round
+    quantity_sold = [quantity_sold, 1].max
+
+    product.sales_histories.create!(sale_date: sale_date, quantity_sold: quantity_sold)
   end
+
+  sales_count = product.sales_histories.count
+  unique_sales_dates = product.sales_histories.distinct.count(:sale_date)
+
+  raise "Expected exactly 60 sales records for #{product.product_name}." unless sales_count == 60
+  raise "Expected unique sale dates for #{product.product_name}." unless unique_sales_dates == 60
 end
 
 festival_data = [

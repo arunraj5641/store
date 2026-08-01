@@ -1,5 +1,5 @@
 class SalesHistory < ApplicationRecord
-  self.primary_key = "sales_id"
+  alias_attribute :sales_id, :id
 
   belongs_to :product,
              foreign_key: :product_id,
