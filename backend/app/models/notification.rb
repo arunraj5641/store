@@ -7,7 +7,8 @@ class Notification < ApplicationRecord
 
   belongs_to :recommendation,
              foreign_key: :recommendation_id,
-             primary_key: :recommendation_id
+             primary_key: :recommendation_id,
+             optional: true
 
   validates :message, presence: true
 

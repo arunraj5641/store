@@ -7,7 +7,7 @@ import Table from '../components/ui/Table'
 import EmptyState from '../components/common/EmptyState'
 import ErrorState from '../components/common/ErrorState'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import { AreaChart, BarChart, DonutChart } from '../components/ui/Chart'
+import { AreaChart, BarChart, DonutChart, LineComparisonChart } from '../components/ui/Chart'
 import apiClient from '../services/api/client'
 import forecastsService from '../services/forecasts'
 import inventoryService from '../services/inventory'
@@ -97,6 +97,7 @@ const Analytics = () => {
   const [sales, setSales] = useState([])
   const [forecasts, setForecasts] = useState([])
   const [recommendations, setRecommendations] = useState([])
+  const [aiForecasts, setAiForecasts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -121,8 +122,16 @@ const Analytics = () => {
         fetchAllPages(forecastsService.list, 'forecasts'),
         fetchAllPages(listRecommendations, 'recommendations'),
       ])
+      const aiForecastResults = await Promise.allSettled(
+        allProducts.map((product) => inventoryService.getForecast(product.product_id)),
+      )
 
       setProducts(allProducts)
+      setAiForecasts(
+        aiForecastResults
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value),
+      )
       setSales(rangeSales)
       setForecasts(
         allForecasts.filter((forecast) => (
@@ -234,6 +243,29 @@ const Analytics = () => {
     () => forecasts.reduce((total, forecast) => total + forecast.predicted_demand, 0),
     [forecasts],
   )
+
+  const totalAiPredictedDemand = useMemo(
+    () => aiForecasts.reduce((total, forecast) => total + (forecast.predicted_weekly_demand || 0), 0),
+    [aiForecasts],
+  )
+
+  const historicalForecastData = useMemo(() => {
+    const salesByDate = sales.reduce((totals, sale) => {
+      totals.set(sale.sale_date, (totals.get(sale.sale_date) || 0) + sale.quantity_sold)
+      return totals
+    }, new Map())
+    const dailyPredictedDemand = totalAiPredictedDemand / 7
+    const today = new Date()
+    const historical = Array.from({ length: 7 }, (_, index) => {
+      const date = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - index)))
+      return { label: formatDateLabel(date), historical: salesByDate.get(date) || 0, forecast: null }
+    })
+    const predicted = Array.from({ length: 7 }, (_, index) => {
+      const date = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + index + 1))
+      return { label: formatDateLabel(date), historical: null, forecast: Number(dailyPredictedDemand.toFixed(1)) }
+    })
+    return [...historical, ...predicted]
+  }, [sales, totalAiPredictedDemand])
 
   const forecastRows = useMemo(() => {
     const totalsByProduct = forecasts.reduce((totals, forecast) => {
@@ -457,6 +489,25 @@ const Analytics = () => {
               )}
             </Card>
           </div>
+
+          <Card title="Historical Sales → Predicted Sales" subtitle="Last seven days of sales followed by the next seven days of cached AI demand.">
+            {aiForecasts.length ? (
+              <>
+                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                  <SummaryTile label="Total Predicted Demand" value={numberFormatter.format(totalAiPredictedDemand)} detail="next 7 days" />
+                  <SummaryTile label="Forecast Coverage" value={numberFormatter.format(aiForecasts.length)} detail="products with cached forecasts" />
+                  <SummaryTile label="Forecast Accuracy" value="—" detail="Available after actual sales are compared" />
+                </div>
+                <LineComparisonChart data={historicalForecastData} height={270} />
+              </>
+            ) : (
+              <EmptyState
+                icon={Sparkles}
+                title="No cached AI forecasts"
+                description="Generate forecasts from the Products page to compare historical and predicted sales."
+              />
+            )}
+          </Card>
 
           <div className="grid gap-8 lg:grid-cols-2">
             <Card title="Top Best-Selling Products" subtitle="Highest unit volume in the selected range.">

@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     rails_api_url: str | None = Field(default=None, validation_alias="RAILS_API_URL")
     rails_api_token: str | None = Field(default=None, validation_alias="RAILS_API_TOKEN")
     forecast_models_dir: str = Field(default="models", validation_alias="FORECAST_MODELS_DIR")
+    forecast_reorder_lead_time_days: int = Field(
+        default=3,
+        ge=0,
+        validation_alias="FORECAST_REORDER_LEAD_TIME_DAYS",
+    )
+    forecast_reorder_safety_stock_percentage: float = Field(
+        default=20,
+        ge=0,
+        validation_alias="FORECAST_REORDER_SAFETY_STOCK_PERCENTAGE",
+    )
 
     @field_validator("ollama_base_url", "ollama_model", "rails_api_url", "rails_api_token", mode="before")
     @classmethod

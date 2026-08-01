@@ -4,6 +4,7 @@ import Header from '../components/common/Header'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import aiService from '../services/ai'
+import inventoryService from '../services/inventory'
 import { getFriendlyErrorMessage } from '../services/api/errors'
 import {
   clearStoredAssistantChatMessages,
@@ -12,6 +13,23 @@ import {
 } from '../services/ai/chatSession'
 
 const chatTimestamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const numberFormatter = new Intl.NumberFormat('en-IN')
+
+const forecastQuestionType = (query) => {
+  const normalized = query.toLowerCase()
+  if (/\b(reorder|restock)\b/.test(normalized)) return 'reorder'
+  if (/\b(risk|risky)\b/.test(normalized)) return 'risk'
+  if (/(demand|sales).*(next week|next 7 days)|(?:next week|next 7 days).*(demand|sales)/.test(normalized)) return 'demand'
+  return null
+}
+
+const productNamedIn = (query, products) => {
+  const match = query.match(/(?:reorder|restock)\s+(?:the\s+)?(.+?)(?:\?|$)/i)
+  if (!match) return null
+  const requestedName = match[1].trim().toLowerCase()
+  return products.find((product) => product.product_name.toLowerCase() === requestedName)
+    || products.find((product) => product.product_name.toLowerCase().includes(requestedName))
+}
 
 const initialMessages = () => [
   {
@@ -56,6 +74,59 @@ const Assistant = () => {
     setInputQuery('')
   }
 
+  const cachedForecastReply = async (query) => {
+    const questionType = forecastQuestionType(query)
+    if (!questionType) return null
+
+    const productsResponse = await inventoryService.list({ page: 1, per_page: 100 })
+    const products = productsResponse.data?.products || []
+
+    if (questionType === 'reorder') {
+      const product = productNamedIn(query, products)
+      if (!product) return 'I could not identify that product. Please ask using its product name, for example: “Should I reorder Rice?”'
+
+      try {
+        const [forecast, reorder] = await Promise.all([
+          inventoryService.getForecast(product.product_id),
+          inventoryService.getReorder(product.product_id),
+        ])
+        return `${product.product_name} has ${reorder.inventory_risk} inventory risk. Predicted weekly demand is ${numberFormatter.format(forecast.predicted_weekly_demand)} units, the dynamic reorder level is ${numberFormatter.format(reorder.dynamic_reorder_level)}, and the recommended order quantity is ${numberFormatter.format(reorder.recommended_order_quantity)} units. ${reorder.explanation}`
+      } catch {
+        return `No cached forecast exists for ${product.product_name}. Generate a forecast from the Products page before asking for its reorder recommendation.`
+      }
+    }
+
+    if (questionType === 'risk') {
+      const results = await Promise.allSettled(products.map(async (product) => ({
+        product,
+        reorder: await inventoryService.getReorder(product.product_id),
+      })))
+      const riskyProducts = results
+        .filter((result) => result.status === 'fulfilled' && ['HIGH', 'MEDIUM'].includes(result.value.reorder.inventory_risk))
+        .map((result) => result.value)
+
+      if (!riskyProducts.length) return 'No cached forecasts with HIGH or MEDIUM inventory risk are available. Generate forecasts from the Products page first.'
+
+      return `Cached inventory risk: ${riskyProducts.map(({ product, reorder }) => `${product.product_name} (${reorder.inventory_risk})`).join(', ')}.`
+    }
+
+    const results = await Promise.allSettled(products.map(async (product) => ({
+      product,
+      forecast: await inventoryService.getForecast(product.product_id),
+    })))
+    const cachedForecasts = results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value)
+
+    if (!cachedForecasts.length) return 'No cached forecasts are available for next-week demand. Generate forecasts from the Products page first.'
+
+    const totalDemand = cachedForecasts.reduce(
+      (total, ({ forecast }) => total + forecast.predicted_weekly_demand),
+      0,
+    )
+    return `Expected demand next week is ${numberFormatter.format(totalDemand)} units across ${cachedForecasts.length} products with cached forecasts.`
+  }
+
   const handleSendMessage = async (textToSend) => {
     const query = (textToSend || inputQuery).trim()
     if (!query.trim()) return
@@ -72,11 +143,12 @@ const Assistant = () => {
     setIsTyping(true)
 
     try {
-      const response = await aiService.chat(query)
+      const cachedReply = await cachedForecastReply(query)
+      const response = cachedReply ? null : await aiService.chat(query)
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: response.data?.reply || 'AI Co-pilot did not return a response. Please try again.',
+        text: cachedReply || response.data?.reply || 'AI Co-pilot did not return a response. Please try again.',
         time: chatTimestamp(),
       }
 

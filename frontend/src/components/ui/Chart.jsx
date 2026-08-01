@@ -110,6 +110,58 @@ export const AreaChart = ({ data = [], height = 220 }) => {
   )
 }
 
+export const LineComparisonChart = ({ data = [], height = 250 }) => {
+  if (!data.length) return null
+
+  const width = 640
+  const chartHeight = 190
+  const padding = { top: 16, right: 18, bottom: 32, left: 28 }
+  const values = data.flatMap((item) => [item.historical, item.forecast]).filter((value) => typeof value === 'number')
+  const maxValue = Math.max(...values, 1)
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = chartHeight - padding.top - padding.bottom
+  const pointFor = (item, index, key) => {
+    if (typeof item[key] !== 'number') return null
+    return {
+      x: padding.left + (index / Math.max(data.length - 1, 1)) * plotWidth,
+      y: padding.top + (1 - item[key] / maxValue) * plotHeight,
+    }
+  }
+  const pathFor = (key) => data.reduce((path, item, index) => {
+    const point = pointFor(item, index, key)
+    if (!point) return path
+    const previous = index > 0 ? pointFor(data[index - 1], index - 1, key) : null
+    return `${path}${previous ? 'L' : 'M'} ${point.x} ${point.y} `
+  }, '')
+
+  return (
+    <div className="w-full" style={{ height: `${height}px` }}>
+      <svg viewBox={`0 0 ${width} ${chartHeight}`} className="h-[calc(100%-28px)] w-full overflow-visible">
+        {[0, 0.5, 1].map((line) => (
+          <line key={line} x1={padding.left} x2={width - padding.right} y1={padding.top + plotHeight * line} y2={padding.top + plotHeight * line} stroke="#1F2937" strokeWidth="1" />
+        ))}
+        <path d={pathFor('historical')} fill="none" stroke="#00D9FF" strokeWidth="3" strokeLinecap="round" />
+        <path d={pathFor('forecast')} fill="none" stroke="#F59E0B" strokeWidth="3" strokeDasharray="7 5" strokeLinecap="round" />
+        {data.map((item, index) => {
+          const historical = pointFor(item, index, 'historical')
+          const forecast = pointFor(item, index, 'forecast')
+          return (
+            <g key={item.label}>
+              {historical ? <circle cx={historical.x} cy={historical.y} r="3" fill="#030712" stroke="#00D9FF" strokeWidth="2" /> : null}
+              {forecast ? <circle cx={forecast.x} cy={forecast.y} r="3" fill="#030712" stroke="#F59E0B" strokeWidth="2" /> : null}
+            </g>
+          )
+        })}
+      </svg>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#94A3B8]">
+        <span>{data[0]?.label}</span>
+        <div className="flex items-center gap-3"><span className="inline-flex items-center gap-1"><i className="h-0.5 w-4 bg-[#00D9FF]" />Historical sales</span><span className="inline-flex items-center gap-1"><i className="h-0.5 w-4 border-t-2 border-dashed border-[#F59E0B]" />Predicted sales</span></div>
+        <span>{data[data.length - 1]?.label}</span>
+      </div>
+    </div>
+  )
+}
+
 export const DonutChart = ({ data = [] }) => {
   const total = data.reduce((acc, item) => acc + item.value, 0) || 1
   let cumulativePercent = 0
@@ -175,4 +227,4 @@ export const DonutChart = ({ data = [] }) => {
   )
 }
 
-export default { BarChart, AreaChart, DonutChart }
+export default { BarChart, AreaChart, DonutChart, LineComparisonChart }

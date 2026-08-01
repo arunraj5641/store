@@ -8,6 +8,14 @@ export const inventoryService = {
   create: async (product) => unwrap(await apiClient.post('/v1/products', { product })),
   update: async (id, product) => unwrap(await apiClient.put(`/v1/products/${id}`, { product })),
   remove: async (id) => unwrap(await apiClient.delete(`/v1/products/${id}`)),
+  getForecast: async (id, refresh = false) => {
+    const response = unwrap(await apiClient.get(`/v1/products/${id}/forecast`, { params: refresh ? { refresh: true } : undefined }))
+    return response.data.forecast
+  },
+  getReorder: async (id, refresh = false) => {
+    const response = unwrap(await apiClient.get(`/v1/products/${id}/reorder`, { params: refresh ? { refresh: true } : undefined }))
+    return response.data.reorder
+  },
 }
 
 export default inventoryService
