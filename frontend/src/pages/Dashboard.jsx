@@ -267,6 +267,7 @@ const Dashboard = () => {
   const [recentNotifications, setRecentNotifications] = useState([])
   const [highPriorityCount, setHighPriorityCount] = useState(0)
   const [upcomingFestivalCount, setUpcomingFestivalCount] = useState(0)
+  const [aiForecasts, setAiForecasts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -297,7 +298,22 @@ const Dashboard = () => {
         listNotifications({ page: 1, per_page: 5 }),
       ])
 
+      const aiForecastResults = await Promise.allSettled(
+        allProducts.map(async (product) => {
+          const [forecast, reorder] = await Promise.all([
+            inventoryService.getForecast(product.product_id),
+            inventoryService.getReorder(product.product_id),
+          ])
+          return { product_id: product.product_id, forecast, reorder }
+        }),
+      )
+
       setProducts(allProducts)
+      setAiForecasts(
+        aiForecastResults
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value),
+      )
       setSalesLast30Days(salesRecords)
       setRecentSales(recentSalesResponse.data?.sales_histories || [])
       setHighPriorityCount(highPriorityResponse.meta?.total || 0)
@@ -406,6 +422,22 @@ const Dashboard = () => {
 
   const hasSalesChartData = salesTotalLast30Days > 0
   const hasTopProducts = topSellingProducts.length > 0
+  const highRiskForecasts = useMemo(
+    () => aiForecasts.filter(({ reorder }) => reorder.inventory_risk === 'HIGH'),
+    [aiForecasts],
+  )
+  const mediumRiskForecasts = useMemo(
+    () => aiForecasts.filter(({ reorder }) => reorder.inventory_risk === 'MEDIUM'),
+    [aiForecasts],
+  )
+  const totalPredictedWeeklyDemand = useMemo(
+    () => aiForecasts.reduce((total, { forecast }) => total + (forecast.predicted_weekly_demand || 0), 0),
+    [aiForecasts],
+  )
+  const productsRequiringReorder = useMemo(
+    () => aiForecasts.filter(({ reorder }) => reorder.recommended_order_quantity > 0),
+    [aiForecasts],
+  )
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -429,6 +461,15 @@ const Dashboard = () => {
             <KpiCard icon={Sparkles} label="High Priority Recommendations" value={numberFormatter.format(highPriorityCount)} detail="Needs attention" tone="danger" />
             <KpiCard icon={CalendarDays} label="Upcoming Festivals" value={numberFormatter.format(upcomingFestivalCount)} detail="From calendar" tone="neutral" />
           </div>
+
+          <Card title="AI Inventory Forecast" subtitle="Cached AI demand and reorder analysis" className="p-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard icon={AlertTriangle} label="Products with HIGH risk" value={numberFormatter.format(highRiskForecasts.length)} detail="Immediate inventory attention" tone="danger" />
+              <KpiCard icon={TrendingDown} label="Products with MEDIUM risk" value={numberFormatter.format(mediumRiskForecasts.length)} detail="At dynamic reorder level" tone="warning" />
+              <KpiCard icon={TrendingUp} label="Total predicted weekly demand" value={numberFormatter.format(totalPredictedWeeklyDemand)} detail="Across cached AI forecasts" tone="primary" />
+              <KpiCard icon={ShoppingCart} label="Products requiring reorder" value={numberFormatter.format(productsRequiringReorder.length)} detail="Recommended order is above zero" tone="success" />
+            </div>
+          </Card>
 
           <div className="grid gap-5 xl:grid-cols-[1.45fr_1fr]">
             <Card

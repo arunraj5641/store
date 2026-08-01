@@ -20,6 +20,11 @@ class Product < ApplicationRecord
            primary_key: :product_id,
            dependent: :destroy
 
+  has_one :ai_forecast,
+          foreign_key: :product_id,
+          primary_key: :product_id,
+          dependent: :destroy
+
   validates :product_name, presence: true
   validates :category, presence: true
   validates :current_stock,

@@ -40,8 +40,6 @@ class ForecastPredictionService:
         product_id: int,
         authorization_header: str | None = None,
     ) -> ProductForecastResponse:
-        model_artifact = self._load_model_artifact(product_id)
-
         try:
             sales_history = await self._sales_history_client.fetch_product(
                 product_id=product_id,
@@ -51,17 +49,21 @@ class ForecastPredictionService:
             raise ForecastPredictionError(error.message, error.status_code) from error
 
         product_history = self._product_history_frame(product_id, sales_history)
-        if len(product_history) < MINIMUM_TRAINING_RECORDS:
+        if product_history.empty:
             raise ForecastPredictionError(
-                f"Product {product_id} needs at least {MINIMUM_TRAINING_RECORDS} sales records.",
+                f"Product {product_id} needs at least one sales record before a forecast can be generated.",
                 422,
             )
 
-        predictions = self._predict_next_days(
-            model=self._model_from_artifact(model_artifact),
-            feature_columns=self._feature_columns_from_artifact(model_artifact),
-            sales_history=product_history,
-        )
+        model_artifact = self._load_model_artifact(product_id)
+        if model_artifact is not None and len(product_history) >= MINIMUM_TRAINING_RECORDS:
+            predictions = self._predict_next_days(
+                model=self._model_from_artifact(model_artifact),
+                feature_columns=self._feature_columns_from_artifact(model_artifact),
+                sales_history=product_history,
+            )
+        else:
+            predictions = self._baseline_predictions(product_history)
         predicted_values = [prediction.predicted_sales for prediction in predictions]
         total_predicted_sales = sum(predicted_values)
 
@@ -72,10 +74,12 @@ class ForecastPredictionService:
             total_predicted_sales=total_predicted_sales,
         )
 
-    def _load_model_artifact(self, product_id: int) -> Any:
+    def _load_model_artifact(self, product_id: int) -> Any | None:
         model_path = Path(self._settings.forecast_models_dir) / f"{product_id}.joblib"
         if not model_path.exists():
-            raise ForecastPredictionError(f"Model for product {product_id} is missing.", 422)
+            # A product can be forecast from its sales history before the nightly
+            # training job has created its own persisted model.
+            return None
 
         try:
             return joblib.load(model_path)
@@ -139,6 +143,20 @@ class ForecastPredictionService:
             )
 
         return predictions
+
+    def _baseline_predictions(self, sales_history: pd.DataFrame) -> list[ForecastPrediction]:
+        """Use recent demand until this product has a trained model."""
+        last_sale_date = sales_history["sale_date"].max().date()
+        recent_demand = sales_history[TARGET_COLUMN].tail(7).astype(float)
+        predicted_sales = max(int(round(recent_demand.mean())), 0)
+
+        return [
+            ForecastPrediction(
+                date=last_sale_date + timedelta(days=day_offset),
+                predicted_sales=predicted_sales,
+            )
+            for day_offset in range(1, PREDICTION_DAYS + 1)
+        ]
 
     def _model_from_artifact(self, model_artifact: Any) -> Any:
         model = model_artifact.get("model") if isinstance(model_artifact, dict) else model_artifact

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Edit2, Eye, Plus, Trash2 } from 'lucide-react'
+import { Edit2, Eye, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import Header from '../components/common/Header'
 import SearchBar from '../components/common/SearchBar'
 import Card from '../components/ui/Card'
@@ -16,6 +16,7 @@ import { getFriendlyErrorMessage } from '../services/api/errors'
 
 const emptyProduct = { product_name: '', category: '', current_stock: '', reorder_threshold: '' }
 const productStatus = (product) => product.current_stock <= product.reorder_threshold ? 'Low Stock' : 'In Stock'
+const riskTone = (risk) => ({ HIGH: 'danger', MEDIUM: 'warning', LOW: 'success' }[risk] || 'neutral')
 
 const Products = () => {
   const [products, setProducts] = useState([])
@@ -32,6 +33,27 @@ const Products = () => {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [deletingProductId, setDeletingProductId] = useState(null)
+  const [aiInsights, setAiInsights] = useState({})
+
+  const loadProductInsight = useCallback(async (productId, refresh = false) => {
+    setAiInsights((current) => ({ ...current, [productId]: { ...current[productId], loading: true, error: '' } }))
+    try {
+      // Fetch the forecast first. The reorder endpoint then uses the same cached
+      // result, so each product needs only one forecast generation.
+      const forecast = await inventoryService.getForecast(productId, refresh)
+      const reorder = await inventoryService.getReorder(productId)
+      setAiInsights((current) => ({ ...current, [productId]: { forecast, reorder, loading: false, error: '' } }))
+    } catch (requestError) {
+      setAiInsights((current) => ({
+        ...current,
+        [productId]: {
+          ...current[productId],
+          loading: false,
+          error: getFriendlyErrorMessage(requestError, 'Forecast data could not be generated. Please try again.'),
+        },
+      }))
+    }
+  }, [])
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
@@ -60,6 +82,22 @@ const Products = () => {
   }, [page, search, category, lowStockOnly])
 
   useEffect(() => { loadProducts() }, [loadProducts])
+
+  useEffect(() => {
+    const queue = [...products]
+    if (!queue.length) return undefined
+
+    // Keep the live API responsive while filling in the catalog's AI columns.
+    const worker = async () => {
+      while (queue.length) {
+        const product = queue.shift()
+        await loadProductInsight(product.product_id)
+      }
+    }
+
+    void Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker))
+    return undefined
+  }, [products, loadProductInsight])
 
   const productForm = (product) => ({
     product_name: product.product_name,
@@ -109,16 +147,23 @@ const Products = () => {
     }
   }
 
+  const generateForecast = (productId, refresh = false) => loadProductInsight(productId, refresh)
+
   const hasActiveFilters = Boolean(search.trim() || category.trim() || lowStockOnly)
   const showPagination = meta && meta.total_pages > 1
-  const columns = ['Product', 'Category', 'Stock', 'Reorder level', 'Status', 'Actions']
+  const columns = ['Product', 'Category', 'Stock', 'Reorder level', 'Status', 'Weekly demand', 'Daily demand', 'Dynamic reorder', 'Recommended order', 'Risk', 'Actions']
   const rows = products.map((product) => [
-    <div key={product.product_id}><p className="font-semibold text-[#F8FAFC]">{product.product_name}</p><p className="text-[11px] text-[#00D9FF]">#{product.product_id}</p></div>,
+    <div key={product.product_id}><p className="font-semibold text-[#F8FAFC]">{product.product_name}</p><p className="text-[11px] text-[#00D9FF]">#{product.product_id}</p>{aiInsights[product.product_id]?.error ? <p className="mt-1 max-w-48 text-[10px] text-[#EF4444]">{aiInsights[product.product_id].error}</p> : null}</div>,
     product.category,
     product.current_stock,
     product.reorder_threshold,
     <Badge key={`status-${product.product_id}`} tone={productStatus(product) === 'Low Stock' ? 'warning' : 'success'}>{productStatus(product)}</Badge>,
-    <div key={`actions-${product.product_id}`} className="flex gap-1"><Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => setViewingProduct(product)}><Eye className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => { setEditingProduct(product); setForm(productForm(product)); setIsFormOpen(true) }}><Edit2 className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" isLoading={deletingProductId === product.product_id} onClick={() => deleteProduct(product)}><Trash2 className="h-3.5 w-3.5 text-[#EF4444]" /></Button></div>,
+    aiInsights[product.product_id]?.loading ? 'Loading...' : aiInsights[product.product_id]?.forecast?.predicted_weekly_demand ?? 'Not generated',
+    aiInsights[product.product_id]?.loading ? 'Loading...' : aiInsights[product.product_id]?.forecast?.average_daily_sales ?? '—',
+    aiInsights[product.product_id]?.loading ? 'Loading...' : aiInsights[product.product_id]?.reorder?.dynamic_reorder_level ?? '—',
+    aiInsights[product.product_id]?.loading ? 'Loading...' : aiInsights[product.product_id]?.reorder?.recommended_order_quantity ?? '—',
+    aiInsights[product.product_id]?.loading ? 'Loading...' : aiInsights[product.product_id]?.reorder?.inventory_risk ? <Badge key={`risk-${product.product_id}`} tone={riskTone(aiInsights[product.product_id].reorder.inventory_risk)}>{aiInsights[product.product_id].reorder.inventory_risk}</Badge> : '—',
+    <div key={`actions-${product.product_id}`} className="flex flex-wrap gap-1"><Button variant="secondary" size="sm" isLoading={aiInsights[product.product_id]?.loading} disabled={deletingProductId === product.product_id} onClick={() => generateForecast(product.product_id, !aiInsights[product.product_id]?.forecast)}>Generate Forecast</Button>{aiInsights[product.product_id]?.forecast ? <Button variant="ghost" size="sm" title="Refresh AI forecast" isLoading={aiInsights[product.product_id]?.loading} onClick={() => generateForecast(product.product_id, true)}><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button> : null}<Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => setViewingProduct(product)}><Eye className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" disabled={deletingProductId === product.product_id} onClick={() => { setEditingProduct(product); setForm(productForm(product)); setIsFormOpen(true) }}><Edit2 className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm" isLoading={deletingProductId === product.product_id} onClick={() => deleteProduct(product)}><Trash2 className="h-3.5 w-3.5 text-[#EF4444]" /></Button></div>,
   ])
 
   return <div className="space-y-8 animate-fade-in">

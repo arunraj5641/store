@@ -18,6 +18,8 @@ Rails.application.routes.draw do
 
       get "products", to: "products#index"
       post "products", to: "products#create"
+      get "products/:id/forecast", to: "product_forecasts#forecast"
+      get "products/:id/reorder", to: "product_forecasts#reorder"
       get "products/:product_id/sales_history", to: "sales_histories#index"
       get "products/:id", to: "products#show"
       put "products/:id", to: "products#update"

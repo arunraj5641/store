@@ -10,9 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "ai_forecasts", force: :cascade do |t|
+    t.decimal "average_daily_demand", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.integer "dynamic_reorder_level", null: false
+    t.datetime "forecast_generated_at", null: false
+    t.string "inventory_risk", null: false
+    t.integer "predicted_weekly_demand", null: false
+    t.bigint "product_id", null: false
+    t.integer "recommended_order_quantity", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_ai_forecasts_on_product_id", unique: true
+  end
 
   create_table "festivals", primary_key: "festival_id", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -37,7 +50,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_090000) do
     t.datetime "created_at", null: false
     t.boolean "is_read", default: false, null: false
     t.string "message", null: false
-    t.bigint "recommendation_id", null: false
+    t.bigint "recommendation_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["recommendation_id"], name: "index_notifications_on_recommendation_id"
@@ -86,6 +99,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_090000) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "ai_forecasts", "products", primary_key: "product_id"
   add_foreign_key "forecasts", "festivals", primary_key: "festival_id"
   add_foreign_key "forecasts", "products", primary_key: "product_id"
   add_foreign_key "notifications", "recommendations", primary_key: "recommendation_id"

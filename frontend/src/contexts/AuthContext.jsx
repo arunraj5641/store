@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.login(credentials)
       setUser(response.data.user)
+      setIsLoading(false)
       return { success: true, message: response.message }
     } catch (error) {
       return {
@@ -59,6 +60,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.signup(values)
       setUser(response.data.user)
+      setIsLoading(false)
       return { success: true, message: response.message }
     } catch (error) {
       return {

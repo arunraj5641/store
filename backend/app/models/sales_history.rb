@@ -1,5 +1,5 @@
 class SalesHistory < ApplicationRecord
-  alias_attribute :sales_id, :id
+  alias_method :sales_id, :id
 
   belongs_to :product,
              foreign_key: :product_id,

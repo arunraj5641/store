@@ -18,7 +18,13 @@ import Settings from '../pages/Settings'
 const ProtectedRoutes = () => {
   const { isAuthenticated, isLoading } = useAuth()
 
-  if (isLoading) return null
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#030712] text-[#F8FAFC]">
+        <p className="text-sm text-[#94A3B8]">Loading your store workspace...</p>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
